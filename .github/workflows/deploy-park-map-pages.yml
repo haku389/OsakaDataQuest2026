@@ -1,0 +1,59 @@
+name: Deploy park map to GitHub Pages
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - docs/index.template.html
+      - .github/workflows/deploy-park-map-pages.yml
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - name: Build public map HTML
+        env:
+          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          placeholder = "__GOOGLE_MAPS_API_KEY__"
+          api_key = os.environ.get("GOOGLE_MAPS_API_KEY", "").strip()
+          if not api_key:
+              raise SystemExit("Repository secret GOOGLE_MAPS_API_KEY is required.")
+
+          template = Path("docs/index.template.html")
+          html = template.read_text(encoding="utf-8")
+          if placeholder not in html:
+              raise SystemExit(f"Placeholder {placeholder} was not found in {template}.")
+
+          site = Path("_site")
+          site.mkdir(parents=True, exist_ok=True)
+          (site / "index.html").write_text(html.replace(placeholder, api_key), encoding="utf-8")
+          PY
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
