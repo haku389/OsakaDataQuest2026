@@ -19,6 +19,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
@@ -33,7 +35,7 @@ jobs:
           placeholder = "__GOOGLE_MAPS_API_KEY__"
           api_key = os.environ.get("GOOGLE_MAPS_API_KEY", "").strip()
           if not api_key:
-              raise SystemExit("Repository secret GOOGLE_MAPS_API_KEY is required.")
+              raise SystemExit("GOOGLE_MAPS_API_KEY secret is required. Add it to repository secrets or the github-pages environment secrets.")
 
           template = Path("docs/index.template.html")
           html = template.read_text(encoding="utf-8")
