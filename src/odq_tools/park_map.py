@@ -112,6 +112,7 @@ def station_monthly_lookup(monthly_path: Path) -> dict[str, list[dict[str, str]]
                 "alight_count": row.get("alight_count", ""),
                 "total_count": row.get("total_count", ""),
                 "avg_daily_total": row.get("avg_daily_total", ""),
+                "month_share_of_period": row.get("month_share_of_period", ""),
             }
         )
     for rows in monthly.values():
@@ -236,6 +237,19 @@ def build_html(markers: list[dict[str, object]], stations: list[dict[str, object
       return number.toLocaleString("ja-JP");
     }}
 
+    function formatPercent(value) {{
+      const number = Number(value);
+      if (!Number.isFinite(number)) return escapeHtml(value);
+      return `${{(number * 100).toFixed(1)}}%`;
+    }}
+
+    function stationPeriodLabel(rows) {{
+      if (!Array.isArray(rows) || rows.length === 0) return "";
+      const first = rows[0]?.year_month || "";
+      const last = rows[rows.length - 1]?.year_month || "";
+      return first && last ? `${{first}} - ${{last}}` : "";
+    }}
+
     function stationMonthlyTable(rows) {{
       if (!Array.isArray(rows) || rows.length === 0) {{
         return `<p class="muted">月別乗降データはありません。</p>`;
@@ -248,13 +262,14 @@ def build_html(markers: list[dict[str, object]], stations: list[dict[str, object
           <td>${{formatNumber(row.alight_count)}}</td>
           <td>${{formatNumber(row.total_count)}}</td>
           <td>${{formatNumber(row.avg_daily_total)}}</td>
+          <td>${{formatPercent(row.month_share_of_period)}}</td>
         </tr>
       `).join("");
       return `
         <div class="monthly-wrap">
           <table class="monthly-table">
             <thead>
-              <tr><th>月</th><th>季節</th><th>乗車</th><th>降車</th><th>合計</th><th>日平均</th></tr>
+              <tr><th>月</th><th>季節</th><th>乗車</th><th>降車</th><th>合計</th><th>日平均</th><th>期間比</th></tr>
             </thead>
             <tbody>${{body}}</tbody>
           </table>
@@ -344,11 +359,13 @@ def build_html(markers: list[dict[str, object]], stations: list[dict[str, object
               <dl>
                 <dt>路線</dt><dd>${{escapeHtml(item.routes)}}</dd>
                 <dt>事業者</dt><dd>${{escapeHtml(item.operators)}}</dd>
-                <dt>乗車数</dt><dd>${{formatNumber(item.board_count)}}</dd>
-                <dt>降車数</dt><dd>${{formatNumber(item.alight_count)}}</dd>
-                <dt>合計</dt><dd>${{formatNumber(item.total_count)}}</dd>
+                <dt>対象期間</dt><dd>${{escapeHtml(stationPeriodLabel(item.monthly))}}</dd>
+                <dt>期間乗車数</dt><dd>${{formatNumber(item.board_count)}}</dd>
+                <dt>期間降車数</dt><dd>${{formatNumber(item.alight_count)}}</dd>
+                <dt>期間合計</dt><dd>${{formatNumber(item.total_count)}}</dd>
               </dl>
-              <h2 style="margin-top:10px;">月別乗降</h2>
+              <h2 style="margin-top:10px;">月別乗降（月合計）</h2>
+              <p class="muted">上段は対象期間の累計、下段は各月の合計です。月別合計はおおむね期間累計の1/12前後になります。</p>
               ${{stationMonthlyTable(item.monthly)}}
             </div>
           `);
